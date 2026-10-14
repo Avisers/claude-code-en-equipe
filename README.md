@@ -34,7 +34,7 @@ les applique à tout le monde.
 
 ```bash
 # depuis la racine de votre projet
-git clone --depth 1 https://github.com/avisers/claude-code-en-equipe /tmp/kit
+git clone --depth 1 https://github.com/Avisers/claude-code-en-equipe /tmp/kit
 cp -r /tmp/kit/.claude .
 cp /tmp/kit/CLAUDE.md .            # ou exemples/symfony/CLAUDE.md, exemples/angular/CLAUDE.md
 chmod +x .claude/hooks/*.sh
