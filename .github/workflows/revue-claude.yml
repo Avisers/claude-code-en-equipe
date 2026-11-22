@@ -1,0 +1,57 @@
+name: Revue Claude
+
+# Revue automatique et NON bloquante : un commentaire sur la PR, jamais un check requis.
+# Secret requis : ANTHROPIC_API_KEY (Settings > Secrets and variables > Actions).
+# Alternative sans clé Anthropic : Bedrock ou Vertex via OIDC (use_bedrock / use_vertex) ; il faut
+# alors ajouter « id-token: write » aux permissions du job, voir docs/cloud-providers.md de l'action.
+# Config non fiable : sur une PR, l'action restaure elle-même .claude/, .mcp.json et CLAUDE.md
+# depuis la branche de base avant de lancer Claude (docs/security.md de l'action) ; les hooks
+# et permissions de la branche de la PR ne s'exécutent donc pas.
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: revue-claude-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  revue:
+    # Les PR de forks n'ont pas accès aux secrets : on ne lance rien.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
+      # id-token: write # uniquement pour Bedrock ou Vertex via OIDC
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allow_fork_prs: "false"
+          use_sticky_comment: "true"
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR: #${{ github.event.pull_request.number }}
+
+            Relis cette pull request en suivant CLAUDE.md. Si .claude/agents existe,
+            délègue la relecture sécurité à l'agent concerné ; applique aussi la skill
+            revue-securite pour tout ce qui touche à l'authentification, aux
+            autorisations, aux requêtes en base, aux entrées utilisateur et aux secrets.
+            Signale bugs, failles, tests manquants et écarts aux conventions.
+            Réponds en français, de façon concise, classé par gravité.
+            Tu ne modifies aucun fichier : tu commentes uniquement.
+          claude_args: |
+            --max-turns 8
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),mcp__github_inline_comment__create_inline_comment"
