@@ -170,6 +170,10 @@ AO='{'; AF='}'
 @test "expansion : \$'…' de message de commit autorisé" { cmd "git commit -m \$'titre\\n\\ncorps'"; [ "$status" -eq 0 ]; }
 @test "expansion : \$'.env' reste bloqué" { cmd "cat \$'.env'"; [ "$status" -eq 2 ]; }
 @test "expansion : \$'\\x2eenv' reste bloqué" { cmd "cat \$'\\x2eenv'"; [ "$status" -eq 2 ]; }
+@test "expansion : \$'\\56env' (octal court) bloqué" { cmd "cat \$'\\56env'"; [ "$status" -eq 2 ]; }
+@test "expansion : \$'\\u002eenv' bloqué" { cmd "cat \$'\\u002eenv'"; [ "$status" -eq 2 ]; }
+@test "expansion : \$'\\U0000002eenv' bloqué" { cmd "cat \$'\\U0000002eenv'"; [ "$status" -eq 2 ]; }
+@test "expansion : \$'\\x2Eenv' (majuscule) bloqué" { cmd "cat \$'\\x2Eenv'"; [ "$status" -eq 2 ]; }
 @test "expansion : pas d'exemption ls avec substitution \$( )" { cmd 'ls $(cat .e*)'; [ "$status" -eq 2 ]; }
 @test "expansion : pas d'exemption ls avec accent grave" { cmd 'ls `cat .e*`'; [ "$status" -eq 2 ]; }
 @test "expansion : pas d'exemption ls avec <( )" { cmd 'ls <(cat .e*)'; [ "$status" -eq 2 ]; }
