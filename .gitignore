@@ -1,2 +1,6 @@
 .DS_Store
 .claude/settings.local.json
+
+# Local, non versionné
+.claude/journal/
+.claude/branche-libre

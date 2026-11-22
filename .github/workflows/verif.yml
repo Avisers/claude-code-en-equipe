@@ -8,22 +8,64 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: verif-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   secrets:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       # Binaire gitleaks (licence MIT) : l'action officielle exige une licence payante pour les organisations.
+      # Version épinglée et checksum SHA-256 vérifié avant exécution.
       - name: gitleaks
-        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.18.4 detect --source /repo --redact --verbose
+        env:
+          GITLEAKS_VERSION: 8.18.4
+          GITLEAKS_SHA256: ba6dbb656933921c775ee5a2d1c13a91046e7952e9d919f9bac4cec61d628e7d
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$archive"
+          echo "${GITLEAKS_SHA256}  $archive" | sha256sum -c -
+          tar -xzf "$archive" gitleaks
+          ./gitleaks detect --source . --redact --verbose
 
   scripts:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: shellcheck des hooks
         run: shellcheck .claude/hooks/*.sh
+      - name: Installer bats
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq bats
+      - name: Tests bats des hooks
+        run: |
+          if [ -d tests ] && ls tests/*.bats >/dev/null 2>&1; then
+            bats tests/
+          else
+            echo "Pas de tests bats, étape ignorée."
+          fi
+
+  formats:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: JSON valide
-        run: jq empty .claude/settings.json
+        run: |
+          set -euo pipefail
+          git ls-files -z '*.json' '.*.json' | xargs -0 -n1 jq empty
+      - name: Frontmatter YAML des commandes, agents et skills
+        run: python3 .github/scripts/frontmatter.py
+      - name: markdownlint
+        run: npx --yes markdownlint-cli2@0.17.2 "**/*.md" "#node_modules"

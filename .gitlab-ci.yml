@@ -1,0 +1,46 @@
+# Équivalent GitLab de .github/workflows/verif.yml.
+# La revue IA se fait en local, dans la session du développeur, avant push (/pr) : aucune clé en CI.
+stages: [verif]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  image: ubuntu:24.04
+  interruptible: true
+  timeout: 10m
+
+variables:
+  GITLEAKS_VERSION: "8.18.4"
+  GITLEAKS_SHA256: "ba6dbb656933921c775ee5a2d1c13a91046e7952e9d919f9bac4cec61d628e7d"
+  GIT_DEPTH: "0"
+  DEBIAN_FRONTEND: noninteractive
+
+secrets:
+  stage: verif
+  before_script: [apt-get update -qq, apt-get install -y -qq curl git ca-certificates]
+  script:
+    - archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+    - curl -sSfL -o "$archive" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/$archive"
+    - echo "${GITLEAKS_SHA256}  $archive" | sha256sum -c -
+    - tar -xzf "$archive" gitleaks
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - ./gitleaks detect --source . --redact --verbose
+
+scripts:
+  stage: verif
+  before_script: [apt-get update -qq, apt-get install -y -qq shellcheck bats]
+  script:
+    - shellcheck .claude/hooks/*.sh
+    - |
+      if ls tests/*.bats >/dev/null 2>&1; then bats tests/; else echo "Pas de tests bats, étape ignorée."; fi
+
+formats:
+  stage: verif
+  before_script: [apt-get update -qq, apt-get install -y -qq jq git python3 python3-yaml nodejs npm]
+  script:
+    - git ls-files -z '*.json' '.*.json' | xargs -0 -n1 jq empty
+    - python3 .github/scripts/frontmatter.py
+    - npx --yes markdownlint-cli2@0.17.2 "**/*.md" "#node_modules"

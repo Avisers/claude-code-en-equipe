@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./secrets/**)",
+      "Read(./**/credentials.json)",
+      "Read(./**/.envrc)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
+      "Bash(curl * | sh)",
+      "Bash(curl * | bash)",
+      "Bash(wget * | sh)",
+      "Bash(wget * | bash)",
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(rm -r -f *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)"
+    ],
+    "ask": [
+      "Bash(git push *)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": ["~/.ssh", "~/.aws", "~/.config/gcloud", "~/.docker", "~/.npmrc", "~/.netrc", "~/.pgpass", "~/.git-credentials", "~/**/.env", "~/**/.envrc", "~/**/.npmrc", "~/**/.pgpass", "~/**/.netrc", "~/**/.git-credentials", "~/**/credentials.json"]
+    },
+    "network": {
+      "allowedDomains": ["github.com", "*.github.com", "gitlab.exemple.interne", "registry.npmjs.org", "*.npmjs.org", "pypi.org", "files.pythonhosted.org"]
+    }
+  },
+  "allowManagedHooksOnly": false,
+  "allowManagedPermissionRulesOnly": false,
+  "allowManagedMcpServersOnly": true,
+  "allowedMcpServers": [
+    {
+      "serverUrl": "https://api.githubcopilot.com/*"
+    },
+    {
+      "serverUrl": "https://mcp.sentry.dev/*"
+    },
+    {
+      "serverUrl": "https://gitlab.exemple.interne/*"
+    },
+    {
+      "serverCommand": [
+        "docker",
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "JIRA_URL",
+        "-e",
+        "JIRA_PERSONAL_TOKEN",
+        "-e",
+        "CONFLUENCE_URL",
+        "-e",
+        "CONFLUENCE_PERSONAL_TOKEN",
+        "ghcr.io/sooperset/mcp-atlassian:0.24.7@sha256:40e8470584820a32f7e385dadc38bf263536e0ec536f9915bd9036dae1807fb6"
+      ]
+    },
+    {
+      "serverCommand": [
+        "docker",
+        "run",
+        "-i",
+        "--rm",
+        "-e",
+        "SONARQUBE_URL",
+        "-e",
+        "SONARQUBE_TOKEN",
+        "sonarsource/sonarqube-mcp:2026.5.1@sha256:44b5ffa9024d3755ce64a82f23946c994f8ed0d2cbb31d1fcdd1104d910e8878"
+      ]
+    }
+  ],
+  "deniedMcpServers": [
+    {
+      "serverUrl": "http://*"
+    }
+  ],
+  "disableClaudeAiConnectors": true,
+  "cleanupPeriodDays": 14,
+  "requiredMinimumVersion": "2.1.150",
+  "companyAnnouncements": [
+    "Claude Code est encadré par la DSI : charte et gouvernance dans docs/gouvernance.md. Aucun secret dans les prompts."
+  ],
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otel-collector.exemple.interne:4317",
+    "OTEL_LOG_USER_PROMPTS": "0",
+    "OTEL_LOG_TOOL_DETAILS": "0",
+    "OTEL_RESOURCE_ATTRIBUTES": "organisation=exemple,environnement=poste-dev",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "DISABLE_ERROR_REPORTING": "1",
+    "DISABLE_FEEDBACK_COMMAND": "1",
+    "CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY": "1"
+  }
+}
