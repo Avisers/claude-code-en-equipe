@@ -205,7 +205,9 @@ grep -Eq '[$`]|<\(|>\(' <<<"$cmd" && seul_ls=0
 # Expansions qui fabriquent un nom à l'exécution ($'…', {a,b}, ${…}) dans un mot qui commence
 # comme un fichier caché sensible (.e → .env, .n → .npmrc/.netrc, .p → .pgpass, .g → .git-credentials,
 # .d → .docker, .a → .aws, .s → .ssh) : refus, le nom réel est invisible ici.
-if [ $seul_ls -eq 0 ] && grep -Eq "(^|[[:space:]/=:<'\"])(\.([enpgdas]|\\$|\\{)[^[:space:]]*(\\$'|\\{[^}[:space:]]*,|\\$\\{)|\\$'\\\\?\.?[enpgdas\\\\])" <<<"$cmd"; then
+# Un $'…' seul n'est refusé que s'il commence par un point (littéral, \x2e ou \056) :
+# git commit -m $'titre\n\ncorps' reste permis.
+if [ $seul_ls -eq 0 ] && grep -Eq "(^|[[:space:]/=:<'\"])(\.([enpgdas]|\\$|\\{)[^[:space:]]*(\\$'|\\{[^}[:space:]]*,|\\$\\{)|\\$'(\.|\\\\x2[eE]|\\\\056))" <<<"$cmd"; then
   bloquer "nom de fichier caché construit par expansion (\$'…', {a,b} ou \${…}) : il peut désigner un fichier de secrets. Écrivez le nom en clair."
 fi
 
