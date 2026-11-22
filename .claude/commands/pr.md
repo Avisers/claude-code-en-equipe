@@ -15,7 +15,17 @@ Arguments : $ARGUMENTS
 - Référence du ticket : argument, sinon nom de branche (`feat/PROJ-123-…`), sinon
   messages de commit. Si aucune, demande.
 
-## 2. Rédiger la description
+## 2. Revue locale avant push ⏸
+La revue IA se fait ici, dans ma session, jamais en CI (aucune clé d'API sur la forge).
+- Lance l'agent `verificateur` sur `git diff <cible>...HEAD` : lint, tests, relecture.
+- Si le diff touche authentification, autorisations, requêtes en base, entrées
+  utilisateur, secrets, dépendances ou données personnelles : agent
+  `relecteur-securite` et skill `revue-securite`.
+- Présente les constats classés par gravité. Un constat bloquant arrête `/pr` :
+  rien n'est poussé tant qu'il n'est pas corrigé ou explicitement accepté par moi.
+- Reporte la synthèse dans « Points d'attention pour la revue ».
+
+## 3. Rédiger la description
 ```markdown
 ## Ticket
 PROJ-123 — <titre> (lien)
@@ -44,7 +54,7 @@ Remplis chaque section à partir du diff (`git diff <cible>...HEAD`) et des
 commits ; n'invente aucun résultat de test : ce qui n'a pas été lancé est écrit
 « non lancé ».
 
-## 3. Créer ⏸
+## 4. Créer ⏸
 Montre le titre et la description, puis **attends mon accord**. Ensuite :
 - GitLab : `glab mr create --draft --target-branch <cible> --title "<titre>" --description "<texte>"`
 - GitHub : `gh pr create --draft --base <cible> --title "<titre>" --body "<texte>"`

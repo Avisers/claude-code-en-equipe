@@ -1,31 +1,6 @@
-# Équivalent GitLab de .github/workflows/verif.yml et revue-claude.yml.
-#
-# SECRETS DE LA REVUE IA — à lire avant d'activer le job revue-claude.
-# Quiconque peut pousser une branche peut modifier CE fichier sur sa branche : un job qui reçoit
-# ANTHROPIC_API_KEY depuis une définition de pipeline modifiable par l'auteur de la MR permet de
-# l'exfiltrer (echo, curl). Conception standard, trois protections cumulées :
-#   1. ANTHROPIC_API_KEY et GITLAB_TOKEN : « masquées », NON protégées (une MR vient d'une branche
-#      non protégée, qui ne recevrait jamais une variable protégée), et limitées à la portée
-#      d'environnement « revue-ia » : seuls les jobs qui déclarent cet environnement les reçoivent.
-#   2. L'environnement « revue-ia » est protégé (Settings > CI/CD > Protected environments) et exige
-#      l'approbation d'un mainteneur avant tout déploiement : un job qui s'y rattache attend ce feu
-#      vert, et l'approbateur voit quel pipeline le demande.
-#   3. Le job est imposé de l'extérieur, hors de portée de l'auteur de la MR : pipeline execution
-#      policy (security policy project du groupe), ou ci_config_path vers un projet de conformité
-#      (Settings > CI/CD > General pipelines > CI/CD configuration file =
-#      « .gitlab-ci.yml@groupe/conformite-ci »). Exemple de fichier dans groupe/conformite-ci :
-#        include:
-#          - project: $CI_PROJECT_PATH     # jobs ordinaires du projet (verif)
-#            ref: $CI_COMMIT_SHA
-#            file: .gitlab-ci.yml
-#          - project: groupe/conformite-ci # job de revue, modifiable par la seule équipe conformité
-#            file: revue-claude.yml
-#      Le job revue-claude ci-dessous sert de modèle à déplacer dans ce projet de conformité ;
-#      retirez-le alors de ce fichier.
-# GITLAB_TOKEN : project access token (pas un jeton personnel), rôle Reporter, scope « api »
-# (seul scope qui permet de poster une note de MR), expiration courte, limité à ce projet.
-# Ne lui donnez ni rôle Maintainer ni scope write_repository : la revue ne pousse rien.
-stages: [verif, revue]
+# Équivalent GitLab de .github/workflows/verif.yml.
+# La revue IA se fait en local, dans la session du développeur, avant push (/pr) : aucune clé en CI.
+stages: [verif]
 
 workflow:
   rules:
@@ -69,43 +44,3 @@ formats:
     - git ls-files -z '*.json' '.*.json' | xargs -0 -n1 jq empty
     - python3 .github/scripts/frontmatter.py
     - npx --yes markdownlint-cli2@0.17.2 "**/*.md" "#node_modules"
-
-revue-claude:
-  stage: revue
-  allow_failure: true # commentaire non bloquant
-  interruptible: true
-  timeout: 15m
-  # Environnement protégé avec approbation : seul ce job reçoit les variables « revue-ia ».
-  environment:
-    name: revue-ia
-    deployment_tier: other
-  variables:
-    GIT_DEPTH: "50"
-  rules:
-    # Pas de revue sur les MR issues de forks (le secret n'y est pas exposé) ni sur les brouillons.
-    - if: >-
-        $CI_PIPELINE_SOURCE == "merge_request_event" &&
-        $CI_MERGE_REQUEST_SOURCE_PROJECT_ID == $CI_PROJECT_ID &&
-        $CI_MERGE_REQUEST_TITLE !~ /^(Draft:|\[Draft\]|Draft\s)/i
-  before_script:
-    - apt-get update -qq && apt-get install -y -qq curl git jq ca-certificates nodejs npm
-    # Version épinglée : une mise à jour se fait par MR, après lecture du changelog.
-    - npm install -g @anthropic-ai/claude-code@2.1.330
-  script:
-    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" --depth=50
-    - git diff "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}...HEAD" > "$CI_PROJECT_DIR/mr.diff"
-    - |
-      # La branche source est non fiable : ses hooks, permissions et serveurs MCP ne doivent pas
-      # s'exécuter. --setting-sources user ignore .claude/settings*.json du dépôt ; on restaure
-      # en plus .claude/, .mcp.json et CLAUDE.md depuis la branche cible (agents, skills, consignes).
-      for p in .claude .mcp.json CLAUDE.md; do
-        rm -rf -- "$p"
-        git checkout "origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}" -- "$p" 2>/dev/null || true
-      done
-      claude -p --setting-sources user "Relis ce diff de merge request en suivant CLAUDE.md. Délègue la relecture sécurité à l'agent concerné s'il existe dans .claude/agents. Signale bugs, failles, tests manquants, écarts aux conventions. Réponds en français, concis, classé par gravité. Tu ne modifies aucun fichier. Diff : mr.diff" \
-        --allowedTools "Read,Grep,Glob" --max-turns 8 > /tmp/revue.md
-    - |
-      jq -Rs '{body: ("## Revue Claude (non bloquante)\n\n" + .)}' /tmp/revue.md > /tmp/note.json
-      curl -sSf --request POST --header "PRIVATE-TOKEN: ${GITLAB_TOKEN}" --header "Content-Type: application/json" \
-        --data @/tmp/note.json \
-        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}/notes"

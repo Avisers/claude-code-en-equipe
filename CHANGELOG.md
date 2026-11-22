@@ -12,7 +12,7 @@ versionnement [SemVer](https://semver.org/lang/fr/).
 - Hooks : `garde-commandes.sh`, `garde-branche.sh`, `journal.sh` ; tests `hooks.bats`.
 - Déploiement entreprise : `managed-settings.json`, `mcp.json.exemple`, exemples Bedrock, Vertex AI et OpenTelemetry.
 - Documentation : `docs/workflow.md`, `docs/adoption.md`, `docs/gouvernance.md`.
-- CI : workflows `revue-claude` et `release`, `.gitlab-ci.yml`, templates de PR et de MR.
+- CI : workflow `release` ; revue IA en local avant push (`/pr`), sans clé en CI, `.gitlab-ci.yml`, templates de PR et de MR.
 - Exemples `CLAUDE.md` : Java Spring, .NET, Python FastAPI.
 - `CONTRIBUTING.md` et `SECURITY.md`.
 

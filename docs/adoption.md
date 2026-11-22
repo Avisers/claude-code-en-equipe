@@ -31,7 +31,7 @@ sont remplis.
 
 - Un `CLAUDE.md` par dépôt, partir de `exemples/` pour la stack.
 - Brancher les MCP utiles (`entreprise/mcp.json.exemple`) : tickets, Sentry, SonarQube.
-- Activer la CI de revue (`revue-claude`) en commentaire, sans blocage au début.
+- Rendre systématique la revue locale de `/pr` avant chaque push.
 - Formation de 2 demi-journées par équipe (voir ci-dessous).
 
 **Critères de passage à la vague 3**

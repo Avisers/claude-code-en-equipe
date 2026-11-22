@@ -54,15 +54,11 @@ refuse des commandes légitimes qui citent un fichier de secrets ; seule l'initi
 | Levée de `garde-branche` par Bash | `garde-commandes.sh` refuse les écritures visibles vers `.claude/branche-libre` (nom littéral, guillemets, jokers), mais une construction lexicale (`f=branche-; touch .claude/${f}libre`, script écrit puis lancé) crée le fichier sans qu'il voie le nom | **Branches protégées côté forge** (pas de push direct ni forcé sur main/develop, MR obligatoire) : c'est le vrai garde-fou, la garde locale n'est qu'un rappel |
 | Masquage du journal | Valeur sensible sans nom révélateur | `OTEL_LOG_TOOL_DETAILS=0`, rétention courte du journal |
 
-Les hooks du projet sont modifiables par quiconque modifie le dépôt : en CI, la revue Claude charge ceux
-de la branche cible, jamais ceux de la branche proposée ; sur les postes, voir `allowManagedHooksOnly` dans
-[`entreprise/README.md`](../entreprise/README.md).
+Les hooks du projet sont modifiables par quiconque modifie le dépôt : sur les postes, voir
+`allowManagedHooksOnly` dans [`entreprise/README.md`](../entreprise/README.md).
 
-La clé de la revue IA en CI suit la même logique : sur GitLab, variables masquées, non protégées,
-limitées à l'environnement `revue-ia`, protégé avec approbation d'un mainteneur, et job imposé par une
-pipeline execution policy ou un `ci_config_path` de conformité, pour que l'auteur d'une MR ne puisse
-pas réécrire le job qui reçoit la clé. Détail : en-tête de [`.gitlab-ci.yml`](../.gitlab-ci.yml) et
-[`entreprise/README.md`](../entreprise/README.md#revue-ia-en-ci).
+Aucune clé d'API n'est confiée à la CI : la revue IA se fait en local, avant push, dans la session
+du développeur (`/pr`).
 
 ## 2. Données envoyées et rétention
 

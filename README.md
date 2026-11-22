@@ -34,7 +34,7 @@ les applique à tout le monde.
                            vérification (agent verificateur, tests, lint)
    │
    ▼
- /pr  ──►  PR / MR  ──►  CI (verif, revue-claude)  ──►  /revue-pr + relecteur-securite
+ /pr  ──►  PR / MR  ──►  CI (verif)        ──►  /revue-pr + relecteur-securite
                                                           │
                                          revue humaine obligatoire ◄┘
                                                           │
@@ -59,7 +59,7 @@ Le détail pas à pas est dans [docs/workflow.md](docs/workflow.md).
 | `entreprise/mcp.json.exemple` | Serveurs MCP : Jira, Confluence, GitLab, GitHub, Sentry, SonarQube |
 | `entreprise/*.env.exemple` | Bedrock, Vertex AI, OpenTelemetry |
 | `docs/gouvernance.md` | Gouvernance : données, droits, audit, conformité |
-| `.github/workflows/` | CI GitHub : `verif`, `revue-claude`, `release` |
+| `.github/workflows/` | CI GitHub : `verif`, `release` |
 | `.gitlab-ci.yml` | CI GitLab équivalente |
 | `.github/` | Templates de PR et de MR |
 | `docs/workflow.md`, `docs/adoption.md` | Cycle de dev complet ; déploiement par vagues |

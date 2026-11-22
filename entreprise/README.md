@@ -121,20 +121,11 @@ en revanche, un dépôt peut aussi retirer ou affaiblir ses propres hooks. Pour 
 elles ne remplacent ni le bac à sable (`sandbox`) ni la revue humaine
 ([limites](https://code.claude.com/docs/en/permissions#bash-rule-limits)).
 
-## Revue IA en CI
+## Revue IA : en local, pas en CI
 
-Le job `revue-claude` reçoit une clé d'API. Quiconque pousse une branche peut modifier le YAML de cette
-branche : la clé ne doit donc jamais dépendre d'une définition de pipeline que l'auteur de la MR contrôle.
-
-| Élément | Réglage GitLab |
-|---|---|
-| `ANTHROPIC_API_KEY`, `GITLAB_TOKEN` | Masquées, **non protégées** (une branche de MR n'est pas protégée et ne les recevrait pas), portée d'environnement `revue-ia` |
-| Environnement `revue-ia` | Protégé (Settings > CI/CD > Protected environments), approbation obligatoire d'un mainteneur avant tout déploiement |
-| Définition du job | Imposée par une pipeline execution policy (security policy project du groupe) ou par `ci_config_path` = `.gitlab-ci.yml@groupe/conformite-ci` ; exemple d'`include` dans l'en-tête de [`.gitlab-ci.yml`](../.gitlab-ci.yml) |
-| `GITLAB_TOKEN` | Project access token, rôle Reporter, scope `api`, expiration courte |
-
-Sur GitHub, `claude-code-action` restaure `.claude/` depuis la branche de base et les secrets ne sont pas
-exposés aux PR de forks ; le diff est calculé avant la session, dans `.revue/pr.diff` (jamais commité).
+La revue Claude tourne dans la session du développeur, avant push (`/pr`, étape 2) : agents
+`verificateur` et `relecteur-securite` sur le diff local. Aucune clé d'API n'est stockée sur la forge,
+aucun job CI n'appelle de modèle : la CI ne fait que des vérifications déterministes (`verif`).
 
 ## Vérifier sur un poste
 

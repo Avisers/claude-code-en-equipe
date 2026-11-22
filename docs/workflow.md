@@ -25,8 +25,8 @@ ticket → /cadrage → /ticket → plan ✔ → tests → code → vérif → /
 | 5 | Implémentation | (dans `/ticket`) | Code jusqu'au vert ; les hooks bloquent secrets, commandes destructives, édition sur `main` | Surveille, interrompt si dérive | Non |
 | 6 | Vérification | agent `verificateur` | Rejoue lint, tests, scénario manuel, relit le diff | Contrôle la preuve fournie | Oui : preuve |
 | 7 | Revue sécurité | agent `relecteur-securite` | Cherche contrôle d'accès, injection, secrets, fuite de données | Arbitre les constats | Oui si constat |
-| 8 | Ouverture | `/pr` | Prépare le commit, pousse, rédige la description depuis le ticket | Relit le diff complet avant de valider | **Oui : push** |
-| 9 | CI | automatique | `verif`, `revue-claude` commentent la PR/MR | Lit les retours | Non |
+| 8 | Ouverture | `/pr` | Revue locale (`verificateur`, `relecteur-securite`) avant push, puis pousse, rédige la description depuis le ticket | Relit le diff complet avant de valider | **Oui : push** |
+| 9 | CI | automatique | `verif` : lint, tests, secrets (aucun appel IA) | Lit les retours | Non |
 | 10 | Revue | `/revue-pr 42` | Relecture structurée d'une PR d'un collègue | Un relecteur humain approuve | **Oui : approbation** |
 | 11 | Merge | outil Git | Rien | Fusionne | **Oui : merge** |
 
