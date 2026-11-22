@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "JIRA_URL", "-e", "JIRA_PERSONAL_TOKEN", "-e", "CONFLUENCE_URL", "-e", "CONFLUENCE_PERSONAL_TOKEN", "ghcr.io/sooperset/mcp-atlassian:0.24.7@sha256:40e8470584820a32f7e385dadc38bf263536e0ec536f9915bd9036dae1807fb6"],
+      "env": {
+        "JIRA_URL": "${JIRA_URL}",
+        "JIRA_PERSONAL_TOKEN": "${JIRA_PERSONAL_TOKEN}",
+        "CONFLUENCE_URL": "${CONFLUENCE_URL}",
+        "CONFLUENCE_PERSONAL_TOKEN": "${CONFLUENCE_PERSONAL_TOKEN}"
+      }
+    },
+    "gitlab": {
+      "type": "http",
+      "url": "${GITLAB_URL:-https://gitlab.exemple.interne}/api/v4/mcp"
+    },
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_MCP_PAT}"
+      }
+    },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
+    },
+    "sonarqube": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "SONARQUBE_URL", "-e", "SONARQUBE_TOKEN", "sonarsource/sonarqube-mcp:2026.5.1@sha256:44b5ffa9024d3755ce64a82f23946c994f8ed0d2cbb31d1fcdd1104d910e8878"],
+      "env": {
+        "SONARQUBE_URL": "${SONARQUBE_URL}",
+        "SONARQUBE_TOKEN": "${SONARQUBE_TOKEN}"
+      }
+    }
+  }
+}
