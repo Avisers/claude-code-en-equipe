@@ -167,6 +167,9 @@ AO='{'; AF='}'
 @test "expansion : ls -d .[a-z]* toléré" { cmd 'ls -d .[a-z]*'; [ "$status" -eq 0 ]; }
 @test "expansion : ls -la .e* toléré" { cmd 'ls -la .e*'; [ "$status" -eq 0 ]; }
 @test "expansion : cat .e* reste bloqué" { cmd 'cat .e*'; [ "$status" -eq 2 ]; }
+@test "expansion : pas d'exemption ls avec substitution \$( )" { cmd 'ls $(cat .e*)'; [ "$status" -eq 2 ]; }
+@test "expansion : pas d'exemption ls avec accent grave" { cmd 'ls `cat .e*`'; [ "$status" -eq 2 ]; }
+@test "expansion : pas d'exemption ls avec <( )" { cmd 'ls <(cat .e*)'; [ "$status" -eq 2 ]; }
 @test "expansion : accolades hors nom sensible autorisées" {
   cmd "mkdir -p src/${AO}a,b${AF}"; [ "$status" -eq 0 ]
 }

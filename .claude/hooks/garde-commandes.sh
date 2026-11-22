@@ -199,6 +199,8 @@ fi
 # ls ne lit que des noms : ses jokers (ls .e*, ls -d .[a-z]*) sont tolérés.
 seul_ls=1
 for seg in "${segs[@]}"; do [ "${seg%% *}" = ls ] || seul_ls=0; done
+# Pas d'exemption si la commande contient une expansion ou une substitution.
+grep -Eq '[$`]|<\(|>\(' <<<"$cmd" && seul_ls=0
 
 # Expansions qui fabriquent un nom à l'exécution ($'…', {a,b}, ${…}) dans un mot qui commence
 # comme un fichier caché sensible (.e → .env, .n → .npmrc/.netrc, .p → .pgpass, .g → .git-credentials,

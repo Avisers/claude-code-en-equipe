@@ -44,9 +44,13 @@ jobs:
         # .revue/ est créé après le checkout, exclu de git (.gitignore et .git/info/exclude) :
         # il n'apparaît jamais dans un commit, même si Claude ou une étape ultérieure fait git add.
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.revue"
+          # Diff écrit hors du checkout, puis copié dans un dossier recréé : un .revue fourni
+          # par la PR (lien symbolique par exemple) est supprimé avant toute écriture.
+          git diff "origin/${BASE_REF}...HEAD" > "$RUNNER_TEMP/pr.diff"
+          rm -rf -- "$GITHUB_WORKSPACE/.revue"
+          mkdir "$GITHUB_WORKSPACE/.revue"
+          cp "$RUNNER_TEMP/pr.diff" "$GITHUB_WORKSPACE/.revue/pr.diff"
           echo ".revue/" >> "$GITHUB_WORKSPACE/.git/info/exclude"
-          git diff "origin/${BASE_REF}...HEAD" > "$GITHUB_WORKSPACE/.revue/pr.diff"
       - uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
