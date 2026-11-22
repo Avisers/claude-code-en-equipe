@@ -13,9 +13,11 @@
 - Chaque contrôleur ou opération API Platform porte `#[IsGranted]` ou passe par un voter.
 - Requêtes Doctrine via QueryBuilder et paramètres ; jamais de DQL concaténée.
 - Les réponses JSON passent par des DTO ou des groupes de sérialisation explicites ; jamais l'entité brute.
+- CSRF actif sur les formulaires ; `Request` jamais lue sans validation (`#[MapRequestPayload]` + contraintes).
 - Secrets dans le vault Symfony (`secrets:set`) ou `.env.local`, jamais dans `.env` versionné.
 
 ## Ne pas faire sans demander
 - Modifier `config/packages/security.yaml`.
+- Désactiver une règle PHPStan ou un test pour passer.
 - Modifier une migration déjà exécutée.
 - Ajouter un bundle ou une dépendance Composer.

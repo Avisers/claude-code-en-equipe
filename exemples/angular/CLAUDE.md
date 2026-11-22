@@ -2,7 +2,7 @@
 
 ## Projet
 - Stack : Angular 20, composants standalone, signals, TypeScript strict.
-- Lancer : `ng serve` · Tests : `ng test` · Lint : `ng lint`
+- Lancer : `ng serve` · Tests : `ng test` · Lint : `ng lint` · Build : `ng build`
 
 ## Conventions
 - Composants standalone uniquement ; pas de nouveau `NgModule`.
@@ -13,6 +13,7 @@
 ## Sécurité — non négociable
 - Les guards améliorent l'expérience, ils ne protègent rien : l'API vérifie les droits.
 - Pas de `bypassSecurityTrust*` ni de `[innerHTML]` sur une donnée utilisateur.
+- Les jetons ne vont pas dans `localStorage` ; préférer un cookie `HttpOnly` posé par l'API.
 - Aucune clé d'API secrète dans `environment.ts` : tout ce qui est là finit dans le bundle.
 
 ## Ne pas faire sans demander
