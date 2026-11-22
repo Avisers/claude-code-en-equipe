@@ -19,3 +19,8 @@
 ## Ne pas faire sans demander
 - Ajouter une dépendance npm.
 - Désactiver une règle ESLint ou passer un fichier en `any`.
+
+## Hook qualité (`qualite.sh`)
+- Par défaut : aucun pour TypeScript (seul `shellcheck` pour les scripts). Le hook tourne hors du bac à sable, il n'exécute donc aucun outil fourni par le dépôt.
+- Outils du projet (`node_modules/.bin/eslint`) : uniquement avec `export CLAUDE_QUALITE_OUTILS_PROJET=1`, sur un dépôt de confiance et en local.
+- Risque de cette option : ces outils exécutent du code du dépôt (configuration, plugins) ; une branche ou une dépendance piégée s'exécuterait à chaque écriture de Claude.

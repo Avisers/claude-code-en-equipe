@@ -1,8 +1,27 @@
 # Équivalent GitLab de .github/workflows/verif.yml et revue-claude.yml.
-# Variables CI/CD à définir : ANTHROPIC_API_KEY, GITLAB_TOKEN — « masquées », NON « protégées » :
-# une variable protégée n'est transmise qu'aux branches protégées, donc jamais aux MR de
-# branches de feature. Les MR de forks restent exclues (règle du job revue). Pour cloisonner
-# davantage, rattachez les variables à un environnement dédié « revue-ia ».
+#
+# SECRETS DE LA REVUE IA — à lire avant d'activer le job revue-claude.
+# Quiconque peut pousser une branche peut modifier CE fichier sur sa branche : un job qui reçoit
+# ANTHROPIC_API_KEY depuis une définition de pipeline modifiable par l'auteur de la MR permet de
+# l'exfiltrer (echo, curl). Conception standard, trois protections cumulées :
+#   1. ANTHROPIC_API_KEY et GITLAB_TOKEN : « masquées », NON protégées (une MR vient d'une branche
+#      non protégée, qui ne recevrait jamais une variable protégée), et limitées à la portée
+#      d'environnement « revue-ia » : seuls les jobs qui déclarent cet environnement les reçoivent.
+#   2. L'environnement « revue-ia » est protégé (Settings > CI/CD > Protected environments) et exige
+#      l'approbation d'un mainteneur avant tout déploiement : un job qui s'y rattache attend ce feu
+#      vert, et l'approbateur voit quel pipeline le demande.
+#   3. Le job est imposé de l'extérieur, hors de portée de l'auteur de la MR : pipeline execution
+#      policy (security policy project du groupe), ou ci_config_path vers un projet de conformité
+#      (Settings > CI/CD > General pipelines > CI/CD configuration file =
+#      « .gitlab-ci.yml@groupe/conformite-ci »). Exemple de fichier dans groupe/conformite-ci :
+#        include:
+#          - project: $CI_PROJECT_PATH     # jobs ordinaires du projet (verif)
+#            ref: $CI_COMMIT_SHA
+#            file: .gitlab-ci.yml
+#          - project: groupe/conformite-ci # job de revue, modifiable par la seule équipe conformité
+#            file: revue-claude.yml
+#      Le job revue-claude ci-dessous sert de modèle à déplacer dans ce projet de conformité ;
+#      retirez-le alors de ce fichier.
 # GITLAB_TOKEN : project access token (pas un jeton personnel), rôle Reporter, scope « api »
 # (seul scope qui permet de poster une note de MR), expiration courte, limité à ce projet.
 # Ne lui donnez ni rôle Maintainer ni scope write_repository : la revue ne pousse rien.
@@ -56,6 +75,10 @@ revue-claude:
   allow_failure: true # commentaire non bloquant
   interruptible: true
   timeout: 15m
+  # Environnement protégé avec approbation : seul ce job reçoit les variables « revue-ia ».
+  environment:
+    name: revue-ia
+    deployment_tier: other
   variables:
     GIT_DEPTH: "50"
   rules:

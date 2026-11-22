@@ -32,7 +32,7 @@
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
     "filesystem": {
-      "denyRead": ["~/.ssh", "~/.aws", "~/.config/gcloud", "~/.docker", "~/.npmrc", "~/.netrc", "~/.pgpass", "~/.git-credentials"]
+      "denyRead": ["~/.ssh", "~/.aws", "~/.config/gcloud", "~/.docker", "~/.npmrc", "~/.netrc", "~/.pgpass", "~/.git-credentials", "~/**/.env", "~/**/.envrc", "~/**/.npmrc", "~/**/.pgpass", "~/**/.netrc", "~/**/.git-credentials", "~/**/credentials.json"]
     },
     "network": {
       "allowedDomains": ["github.com", "*.github.com", "gitlab.exemple.interne", "registry.npmjs.org", "*.npmjs.org", "pypi.org", "files.pythonhosted.org"]

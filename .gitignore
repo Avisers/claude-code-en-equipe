@@ -4,3 +4,5 @@
 # Local, non versionné
 .claude/journal/
 .claude/branche-libre
+# Diff calculé par la revue Claude en CI (.github/workflows/revue-claude.yml)
+.revue/

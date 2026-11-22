@@ -29,7 +29,6 @@ normaliser() {
   printf '%s%s' "$abs" "${out[*]:-}"
 }
 fichier=$(normaliser "$fichier")
-nom=${fichier##*/}
 
 bloquer() { echo "$1" >&2; exit 2; }
 
@@ -41,20 +40,45 @@ exclu() {
   return 1
 }
 
-if [ "$outil" = "Read" ]; then
-  if exclu "$fichier"; then exit 0; fi
-  case "$nom" in
+# Refuse la lecture d'un chemin (fichier, dossier ou motif Glob) qui désigne des secrets.
+verifier_lecture() {
+  local f n c
+  f=$(normaliser "$1"); n=${f##*/}
+  [ -z "$f" ] && return 0
+  exclu "$f" && return 0
+  case "$n" in
     .env|.env.*|.envrc|*.pem|*.key|*.p12|*.pfx|*.jks|*.keystore|id_rsa|id_ed25519|id_ecdsa|id_dsa|credentials.json|secrets.*|.npmrc|.pgpass|.netrc|_netrc|.git-credentials)
-      bloquer "Lecture refusée : « $nom » contient probablement des secrets. Lisez plutôt le fichier d'exemple (.env.exemple) ou demandez la valeur à un humain." ;;
+      bloquer "Lecture refusée : « $n » contient probablement des secrets. Lisez plutôt le fichier d'exemple (.env.exemple) ou demandez la valeur à un humain." ;;
+    secrets|.ssh|.aws|.gnupg)
+      bloquer "Lecture refusée : le dossier « $n » est hors d'atteinte de Claude." ;;
   esac
-  case "$fichier" in
+  case "$f" in
     secrets/*|*/secrets/*)
       bloquer "Lecture refusée : le dossier secrets/ est hors d'atteinte de Claude." ;;
     .aws/credentials|*/.aws/credentials|*/.ssh/*|.docker/config.json|*/.docker/config.json|.env/*|*/.env/*)
-      bloquer "Lecture refusée : « $fichier » contient des identifiants." ;;
+      bloquer "Lecture refusée : « $f » contient des identifiants." ;;
   esac
-  exit 0
-fi
+  # Motif à joker (Glob « .e*v », « **/.env* ») qui peut désigner un fichier sensible.
+  case "$n" in
+    .*[?*[]*|.[?*[]*)
+      for c in .env .env.local .envrc .npmrc .pgpass .netrc .git-credentials; do
+        # shellcheck disable=SC2053 # $n est volontairement un motif.
+        [[ $c == $n ]] && bloquer "Lecture refusée : le motif « $n » peut désigner « $c »."
+      done ;;
+  esac
+  return 0
+}
+
+case "$outil" in
+  Read)
+    verifier_lecture "$fichier"; exit 0 ;;
+  Grep|Glob|LS)
+    # path : dossier ou fichier fouillé ; pattern : motif de fichiers (Glob) ; glob : filtre de Grep.
+    verifier_lecture "$(jq -r '.tool_input.path // empty' <<<"$input")"
+    verifier_lecture "$(jq -r '.tool_input.glob // empty' <<<"$input")"
+    [ "$outil" = "Glob" ] && verifier_lecture "$(jq -r '.tool_input.pattern // empty' <<<"$input")"
+    exit 0 ;;
+esac
 
 contenu=$(jq -r '[.tool_input.content, .tool_input.new_string, .tool_input.new_source, (.tool_input.edits[]?.new_string)] | map(select(. != null)) | join("\n")' <<<"$input")
 [ -z "$contenu" ] && exit 0

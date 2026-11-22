@@ -28,9 +28,22 @@ ce sont les règles `permissions.deny` de `managed-settings.json`, le bac à sab
 fichiers et réseau au niveau du système) et des secrets **absents du poste** (coffre, jetons à courte durée).
 Branches protégées côté forge et revue humaine complètent le dispositif.
 
-Contournements connus et volontairement hors de portée : variable intermédiaire (`x=.env; cat $x`),
-jokers (`cat .e*v`), base64 ou hexadécimal, concaténation (`r=r; m=m; $r$m …`). À l'inverse, la garde
-peut refuser des commandes légitimes qui citent un fichier de secrets, comme `cp .env.example .env`.
+**La protection des secrets repose sur `sandbox.filesystem.denyRead` et sur l'absence de secrets sur le
+poste, pas sur le hook.** `garde-commandes.sh` refuse les formes courantes (nom en clair, guillemets ou
+antislashs intercalés, jokers `cat .e*v`, `$'…'`, accolades `.e{n,x}v`, `${…}` dans un nom caché sensible),
+mais l'analyse lexicale a été arrêtée là, volontairement : elle ne poursuit pas les contournements suivants.
+
+| Contournement hors de portée | Exemple |
+|---|---|
+| Variable intermédiaire | `x=.env; cat $x` |
+| Construction par `$''`, accolades ou `${…}` hors d'un mot commençant comme un nom sensible | `f=$'\x2e'; cat ${f}env`, `cat {.,}env` |
+| Concaténation, `eval`, alias | `r=r; m=m; $r$m …` |
+| Encodage | base64, hexadécimal, fichier découpé |
+| Script écrit puis exécuté | `printf … > a.sh; sh a.sh` |
+
+`ls` est toléré avec des jokers (`ls .e*`, `ls -d .[a-z]*`) : il ne lit que des noms. À l'inverse, la garde
+refuse des commandes légitimes qui citent un fichier de secrets ; seule l'initialisation
+`cp .env.example .env` (ou `.exemple`, `.sample`, `.dist`) est explicitement autorisée.
 
 | Limite | Exemple de contournement | Contrôle qui prend le relais |
 |---|---|---|
@@ -38,11 +51,18 @@ peut refuser des commandes légitimes qui citent un fichier de secrets, comme `c
 | Contenu encodé | Secret écrit en base64, en hexadécimal ou découpé sur plusieurs écritures | gitleaks en CI sur tout l'historique, rotation des secrets |
 | Écritures par Bash | `echo … > fichier`, `sed -i`, `python -c` : ni `garde-secrets.sh` ni `garde-branche.sh` ne les voient | Branches protégées côté forge, gitleaks en CI |
 | Lecture de secrets hors liste | Outil de lecture absent de la liste (`dd`, `python -c open()`), fichier de secrets au nom inhabituel | `permissions.deny` gérées, secrets hors du poste (coffre) |
+| Levée de `garde-branche` par Bash | `garde-commandes.sh` refuse les écritures visibles vers `.claude/branche-libre` (nom littéral, guillemets, jokers), mais une construction lexicale (`f=branche-; touch .claude/${f}libre`, script écrit puis lancé) crée le fichier sans qu'il voie le nom | **Branches protégées côté forge** (pas de push direct ni forcé sur main/develop, MR obligatoire) : c'est le vrai garde-fou, la garde locale n'est qu'un rappel |
 | Masquage du journal | Valeur sensible sans nom révélateur | `OTEL_LOG_TOOL_DETAILS=0`, rétention courte du journal |
 
 Les hooks du projet sont modifiables par quiconque modifie le dépôt : en CI, la revue Claude charge ceux
 de la branche cible, jamais ceux de la branche proposée ; sur les postes, voir `allowManagedHooksOnly` dans
 [`entreprise/README.md`](../entreprise/README.md).
+
+La clé de la revue IA en CI suit la même logique : sur GitLab, variables masquées, non protégées,
+limitées à l'environnement `revue-ia`, protégé avec approbation d'un mainteneur, et job imposé par une
+pipeline execution policy ou un `ci_config_path` de conformité, pour que l'auteur d'une MR ne puisse
+pas réécrire le job qui reçoit la clé. Détail : en-tête de [`.gitlab-ci.yml`](../.gitlab-ci.yml) et
+[`entreprise/README.md`](../entreprise/README.md#revue-ia-en-ci).
 
 ## 2. Données envoyées et rétention
 

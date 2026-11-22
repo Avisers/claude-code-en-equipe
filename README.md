@@ -84,6 +84,15 @@ printf '.claude/journal/\n.claude/branche-libre\n.claude/settings.local.json\n' 
 Puis remplissez `CLAUDE.md` et adaptez les commandes de `qualite.sh` à votre outillage.
 Les hooks demandent `bash` et `jq`. Pour tester les hooks : `bats tests/hooks.bats`.
 
+**Hook `qualite.sh` : ce qui tourne par défaut.** Un hook s'exécute hors du bac à sable, avec vos droits.
+Par défaut, `qualite.sh` ne lance donc que des outils du `PATH` dont la configuration est déclarative :
+`shellcheck`, `gofmt`, `ruff`. Les outils fournis ou pilotés par le dépôt (`vendor/bin/php-cs-fixer`,
+`phpstan`, `node_modules/.bin/eslint`, `.venv/bin/ruff`, `mvn`, `./gradlew`, `dotnet format`) ne tournent
+qu'avec `export CLAUDE_QUALITE_OUTILS_PROJET=1`. **Risque** : ils exécutent du code du dépôt
+(`.php-cs-fixer.php`, `eslint.config.js`, plugins Maven/Gradle, MSBuild) ; une branche ou une dépendance
+piégée s'exécute alors hors bac à sable à chaque écriture de Claude. Activez-la seulement sur un dépôt
+de confiance, dans votre environnement local, jamais en CI sur des branches tierces.
+
 > **Branches protégées.** `garde-branche.sh` refuse toute écriture de Claude sur
 > `main` et `master` : on travaille sur une branche de ticket. La liste se règle
 > avec la variable `CLAUDE_BRANCHES_PROTEGEES` (ex. `"main master develop"`).

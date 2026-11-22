@@ -28,3 +28,8 @@
 - Modifier l'authentification, la gestion des jetons ou CORS.
 - Ajouter une dépendance (`pyproject.toml`, `requirements`).
 - Ajouter `# type: ignore`, `# noqa` ou désactiver un test pour passer.
+
+## Hook qualité (`qualite.sh`)
+- Par défaut : `ruff check` s'il est dans le `PATH`. Le hook tourne hors du bac à sable, il n'exécute donc aucun outil fourni par le dépôt.
+- Outils du projet (`.venv/bin/ruff`) : uniquement avec `export CLAUDE_QUALITE_OUTILS_PROJET=1`, sur un dépôt de confiance et en local.
+- Risque de cette option : ces outils exécutent du code du dépôt (configuration, plugins) ; une branche ou une dépendance piégée s'exécuterait à chaque écriture de Claude.

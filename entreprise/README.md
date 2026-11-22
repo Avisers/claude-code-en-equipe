@@ -57,7 +57,7 @@ la DSI. Source : [Settings precedence](https://code.claude.com/docs/en/settings#
 | `allowManagedPermissionRulesOnly` | `false` | Idem pour les règles du kit ; `true` n'applique plus que les règles de la DSI |
 | `sandbox.enabled` + `allowUnsandboxedCommands: false` | `true` / `false` | Les commandes Bash tournent dans le bac à sable du système, sans repli hors bac à sable ; posée en politique gérée, elle rend le bac à sable obligatoire et Claude Code ignore les assouplissements du projet (`excludedCommands`, `allowWrite`, `allowedDomains`). C'est la vraie frontière, les hooks ne sont qu'un filet |
 | `sandbox.failIfUnavailable` | `true` | Claude Code refuse de démarrer si le bac à sable ne peut pas tourner (bubblewrap absent sous Linux, par exemple) |
-| `sandbox.filesystem.denyRead` | `~/.ssh`, `~/.aws`, `~/.npmrc`… | Identifiants du poste illisibles, même par un script lancé depuis Bash |
+| `sandbox.filesystem.denyRead` | `~/.ssh`, `~/.aws`, `~/.npmrc`…, puis `~/**/.env`, `~/**/.envrc`, `~/**/credentials.json`… | Identifiants du poste et fichiers de secrets des projets illisibles par les commandes Bash, même via un script. Format de la doc : `~/` relatif au home, jokers `**` acceptés (exemple officiel `~/**/.env`) ; `.` ne vaut la racine du projet qu'en paramètres de projet, d'où des motifs sous `~` en politique gérée — les dépôts hors du home ne sont pas couverts. `denyRead` ne s'applique pas à l'outil Read (couvert par `permissions.deny`) ni aux hooks, qui tournent hors du bac à sable |
 | `sandbox.network.allowedDomains` | forge, registres npm et PyPI | Sortie réseau des commandes limitée à ces domaines ; à compléter selon vos registres internes. Source : [Sandboxing](https://code.claude.com/docs/en/sandboxing) |
 | `cleanupPeriodDays` | `14` | Les transcriptions locales (`~/.claude/projects/`, en clair) sont purgées après 14 jours |
 | `env` | OTel + `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | Télémétrie vers votre collecteur, pas de trafic non essentiel vers Anthropic |
@@ -120,6 +120,21 @@ en revanche, un dépôt peut aussi retirer ou affaiblir ses propres hooks. Pour 
  Les règles `Bash(...)` filtrent la commande **telle qu'écrite** :
 elles ne remplacent ni le bac à sable (`sandbox`) ni la revue humaine
 ([limites](https://code.claude.com/docs/en/permissions#bash-rule-limits)).
+
+## Revue IA en CI
+
+Le job `revue-claude` reçoit une clé d'API. Quiconque pousse une branche peut modifier le YAML de cette
+branche : la clé ne doit donc jamais dépendre d'une définition de pipeline que l'auteur de la MR contrôle.
+
+| Élément | Réglage GitLab |
+|---|---|
+| `ANTHROPIC_API_KEY`, `GITLAB_TOKEN` | Masquées, **non protégées** (une branche de MR n'est pas protégée et ne les recevrait pas), portée d'environnement `revue-ia` |
+| Environnement `revue-ia` | Protégé (Settings > CI/CD > Protected environments), approbation obligatoire d'un mainteneur avant tout déploiement |
+| Définition du job | Imposée par une pipeline execution policy (security policy project du groupe) ou par `ci_config_path` = `.gitlab-ci.yml@groupe/conformite-ci` ; exemple d'`include` dans l'en-tête de [`.gitlab-ci.yml`](../.gitlab-ci.yml) |
+| `GITLAB_TOKEN` | Project access token, rôle Reporter, scope `api`, expiration courte |
+
+Sur GitHub, `claude-code-action` restaure `.claude/` depuis la branche de base et les secrets ne sont pas
+exposés aux PR de forks ; le diff est calculé avant la session, dans `.revue/pr.diff` (jamais commité).
 
 ## Vérifier sur un poste
 

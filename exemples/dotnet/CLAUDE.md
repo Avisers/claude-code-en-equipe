@@ -27,3 +27,8 @@
 - Modifier l'authentification, les politiques d'autorisation ou CORS.
 - Ajouter un paquet NuGet.
 - Désactiver un avertissement de l'analyseur (`#pragma warning disable`) ou un test (`[Fact(Skip=...)]`).
+
+## Hook qualité (`qualite.sh`)
+- Par défaut : aucun pour C# (seul `shellcheck` pour les scripts). Le hook tourne hors du bac à sable, il n'exécute donc aucun outil fourni par le dépôt.
+- Outils du projet (`dotnet format --verify-no-changes`) : uniquement avec `export CLAUDE_QUALITE_OUTILS_PROJET=1`, sur un dépôt de confiance et en local.
+- Risque de cette option : ces outils exécutent du code du dépôt (configuration, plugins) ; une branche ou une dépendance piégée s'exécuterait à chaque écriture de Claude.

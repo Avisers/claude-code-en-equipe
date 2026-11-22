@@ -34,8 +34,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
+      # L'action ne fournit pas le diff à Claude (README et docs/security.md de claude-code-action) :
+      # on le calcule ici, hors de la session, pour ne lui laisser aucune commande Bash.
+      - name: Diff de la PR
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        # .revue/ est créé après le checkout, exclu de git (.gitignore et .git/info/exclude) :
+        # il n'apparaît jamais dans un commit, même si Claude ou une étape ultérieure fait git add.
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.revue"
+          echo ".revue/" >> "$GITHUB_WORKSPACE/.git/info/exclude"
+          git diff "origin/${BASE_REF}...HEAD" > "$GITHUB_WORKSPACE/.revue/pr.diff"
       - uses: anthropics/claude-code-action@acfe7992852970efb4fee683d63d628e3e52df67 # v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -52,6 +63,9 @@ jobs:
             Signale bugs, failles, tests manquants et écarts aux conventions.
             Réponds en français, de façon concise, classé par gravité.
             Tu ne modifies aucun fichier : tu commentes uniquement.
+            Le diff complet de la PR est dans .revue/pr.diff : lis-le avec Read.
+          # Aucune commande Bash autorisée : git diff/log acceptent des options qui exécutent
+          # un programme (--ext-diff, --output, -c core.pager…).
           claude_args: |
             --max-turns 8
-            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git log:*),mcp__github_inline_comment__create_inline_comment"
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment"

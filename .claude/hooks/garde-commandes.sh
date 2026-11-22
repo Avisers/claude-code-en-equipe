@@ -147,23 +147,72 @@ if [ $telechargement -eq 1 ] && [ $interpreteur -eq 1 ]; then
   bloquer "téléchargement exécuté dans la même commande (curl | sh, curl -o f; sh f, | python…). Téléchargez, relisez, vérifiez la somme de contrôle, puis exécutez séparément."
 fi
 
-# La levée de garde-branche appartient à l'humain.
-if a 'branche-libre'; then
-  if a '>' || a '(^|[^a-z])(touch|cp|mv|tee|ln|install|rsync|dd|mkdir|truncate|sed|python[0-9.]*|perl|ruby|node)([^a-z]|$)'; then
+# Texte tel que bash le verra après retrait des guillemets et des antislashs :
+# « .e"n"v », « .e\nv » et « '.env' » redeviennent « .env ».
+nu=$(tr -d "\\\\\"'" <<<"$cmd")
+
+# Vrai si un mot contenant un joker (? * [) peut s'étendre en un nom sensible.
+# Comme bash sans dotglob, un joker en tête ne capture pas un nom commençant par un point ;
+# un joker d'extension pur (*.json) ne vise que les clés (*.pem, *.key…).
+candidats_point=(.env .env.local .env.prod .envrc .npmrc .pgpass .netrc .git-credentials)
+candidats=(id_rsa id_ed25519 id_ecdsa server.pem server.key cert.p12 cert.pfx credentials.json secrets.yaml secrets.json)
+joker_sensible() {
+  local b=${1%/} c
+  b=${b##*/}
+  case "$b" in *[?*[]*) ;; *) return 1 ;; esac
+  for c in "${candidats_point[@]}"; do
+    # shellcheck disable=SC2053 # $b est volontairement un motif.
+    [[ $b == .* ]] && [[ $c == $b ]] && return 0
+  done
+  case "$b" in '*'|'**') return 1 ;; esac
+  for c in "${candidats[@]}"; do
+    case "$b" in '*.'*) case "$c" in *.pem|*.key|*.p12|*.pfx) ;; *) continue ;; esac ;; esac
+    # shellcheck disable=SC2053
+    [[ $c == $b ]] && return 0
+  done
+  return 1
+}
+
+# La levée de garde-branche appartient à l'humain (nom littéral ou joker qui s'y étend).
+libre=0
+grep -Eiq 'branche-libre' <<<"$nu" && libre=1
+if [ $libre -eq 0 ]; then
+  while read -r t; do
+    case "$t" in *[?*[]*) ;; *) continue ;; esac
+    b=${t##*/}
+    # shellcheck disable=SC2053
+    [[ branche-libre == $b ]] && [ "$b" != '*' ] && libre=1
+  done < <(tr " \t=:(),;|&<>{}\`" '\n' <<<"$nu")
+fi
+if [ $libre -eq 1 ]; then
+  if grep -Eiq '>|(^|[^a-z])(touch|cp|mv|tee|ln|install|rsync|dd|mkdir|truncate|sed|python[0-9.]*|perl|ruby|node)([^a-z]|$)' <<<"$nu"; then
     bloquer "écriture de .claude/branche-libre. Seul un humain lève la garde de branche."
   fi
 fi
 
 # Mention d'un fichier de secrets n'importe où dans la commande (cat .env, < .env, dd if=.env,
-# git show HEAD:.env, python3 -c "open('.env')"…). Les mots sont découpés sur les blancs,
-# guillemets, = : ( ) , ; | & < et accolades. Seule la cible d'une redirection de sortie
-# (> .env) est tolérée : écrire n'expose pas le contenu existant.
+# git show HEAD:.env, python3 -c "open('.env')", cat .e*v…), sur le texte dé-guillemeté,
+# découpé sur les blancs, = : ( ) , ; | & < et accolades. Seule la cible d'une redirection
+# de sortie (> .env) est tolérée : écrire n'expose pas le contenu existant.
 # Exception étroite : « cp [-n] / install » d'un modèle (*.example, *.exemple, *.sample, *.dist)
 # VERS .env ou .env.* — l'initialisation classique. La suite de la commande reste analysée.
+# ls ne lit que des noms : ses jokers (ls .e*, ls -d .[a-z]*) sont tolérés.
+seul_ls=1
+for seg in "${segs[@]}"; do [ "${seg%% *}" = ls ] || seul_ls=0; done
+
+# Expansions qui fabriquent un nom à l'exécution ($'…', {a,b}, ${…}) dans un mot qui commence
+# comme un fichier caché sensible (.e → .env, .n → .npmrc/.netrc, .p → .pgpass, .g → .git-credentials,
+# .d → .docker, .a → .aws, .s → .ssh) : refus, le nom réel est invisible ici.
+if [ $seul_ls -eq 0 ] && grep -Eq "(^|[[:space:]/=:<'\"])(\.([enpgdas]|\\$|\\{)[^[:space:]]*(\\$'|\\{[^}[:space:]]*,|\\$\\{)|\\$'\\\\?\.?[enpgdas\\\\])" <<<"$cmd"; then
+  bloquer "nom de fichier caché construit par expansion (\$'…', {a,b} ou \${…}) : il peut désigner un fichier de secrets. Écrivez le nom en clair."
+fi
+
 modele='(^|[;&|[:space:]])(cp|install)([[:space:]]+-n)?[[:space:]]+[^[:space:];&|]+\.(example|exemple|sample|dist)[[:space:]]+([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_-]+)?([[:space:]]*($|[;&|]))'
 while read -r t; do
-  [ -n "$t" ] && sensible "$t" && bloquer "accès à « $t » : fichier de secrets. Lisez le fichier d'exemple (.env.example) ou demandez la valeur à un humain."
-done < <(sed -E -e "s#$modele#\1\7#g" -e 's/>>?[[:space:]]*[^[:space:]]+//g' <<<"$cmd" | tr " \t\"'=:(),;|&<{}\`[]" '\n' || true)
+  [ -z "$t" ] && continue
+  sensible "$t" && bloquer "accès à « $t » : fichier de secrets. Lisez le fichier d'exemple (.env.example) ou demandez la valeur à un humain."
+  [ $seul_ls -eq 0 ] && joker_sensible "$t" && bloquer "joker « $t » qui peut désigner un fichier de secrets. Nommez le fichier voulu explicitement."
+done < <(sed -E -e "s#$modele#\1\7#g" -e 's/>>?[[:space:]]*[^[:space:]]+//g' <<<"$nu" | tr " \t=:(),;|&<{}\`" '\n' || true)
 
 # Second passage : analyse segment par segment.
 for seg in "${segs[@]}"; do

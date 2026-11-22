@@ -28,3 +28,8 @@
 - Ajouter une dépendance Maven/Gradle.
 - Passer `spring.jpa.hibernate.ddl-auto` à autre chose que `validate` ou `none`.
 - Supprimer ou désactiver un test (`@Disabled`) pour le faire passer.
+
+## Hook qualité (`qualite.sh`)
+- Par défaut : aucun pour Java (seul `shellcheck` pour les scripts). Le hook tourne hors du bac à sable, il n'exécute donc aucun outil fourni par le dépôt.
+- Outils du projet (`mvn spotless:check` / `checkstyle:check`, `./gradlew spotlessCheck`) : uniquement avec `export CLAUDE_QUALITE_OUTILS_PROJET=1`, sur un dépôt de confiance et en local.
+- Risque de cette option : ces outils exécutent du code du dépôt (configuration, plugins) ; une branche ou une dépendance piégée s'exécuterait à chaque écriture de Claude.

@@ -119,6 +119,60 @@ sec() { run env GARDE_SECRETS_SANS_GITLEAKS=1 "$H/garde-secrets.sh" <<<"$1"; }
 @test "exception : cp .env /tmp/x bloqué" { cmd 'cp .env /tmp/x'; [ "$status" -eq 2 ]; }
 @test "exception : cp .env.example .env && cat .env bloqué" { cmd 'cp .env.example .env && cat .env'; [ "$status" -eq 2 ]; }
 @test "exception : cp .env.example vers autre chose que .env bloqué" { cmd 'cp .env.example .env.example .npmrc'; [ "$status" -eq 2 ]; }
+
+# Revue PR #1 : guillemets, antislashs et jokers.
+@test "lexical : cat .e\"n\"v bloqué" { cmd 'cat .e"n"v'; [ "$status" -eq 2 ]; }
+@test "lexical : cat .e'n'v bloqué" { cmd "cat .e'n'v"; [ "$status" -eq 2 ]; }
+@test "lexical : cat .e\\nv bloqué" { cmd 'cat .e\nv'; [ "$status" -eq 2 ]; }
+@test "lexical : cat .e*v bloqué" { cmd 'cat .e*v'; [ "$status" -eq 2 ]; }
+@test "lexical : cat .en? bloqué" { cmd 'cat .en?'; [ "$status" -eq 2 ]; }
+@test "lexical : cat .[e]nv bloqué" { cmd 'cat .[e]nv'; [ "$status" -eq 2 ]; }
+@test "lexical : cat ~/.np*rc bloqué" { cmd 'cat ~/.np*rc'; [ "$status" -eq 2 ]; }
+@test "lexical : cat *.pem bloqué" { cmd 'cat certs/*.pem'; [ "$status" -eq 2 ]; }
+@test "lexical : cat cred*.json bloqué" { cmd 'cat config/cred*.json'; [ "$status" -eq 2 ]; }
+@test "lexical : touch .claude/branche-lib\"r\"e bloqué" { cmd 'touch .claude/branche-lib"r"e'; [ "$status" -eq 2 ]; }
+@test "lexical : touch .claude/branche-libr? bloqué" { cmd 'touch .claude/branche-libr?'; [ "$status" -eq 2 ]; }
+@test "lexical : cp x .claude/branche-l*e bloqué" { cmd 'cp x .claude/branche-l*e'; [ "$status" -eq 2 ]; }
+@test "lexical : ls * autorisé" { cmd 'ls *'; [ "$status" -eq 0 ]; }
+# Expansions : chaînes assemblées par printf (les accolades gênent le parseur de bats).
+AO='{'; AF='}'
+@test "expansion : cat \$'.env' bloqué" {
+  cmd "cat \$'.env'"; [ "$status" -eq 2 ]
+}
+@test "expansion : cat \$'\\x2eenv' bloqué" {
+  cmd "cat \$'\\x2eenv'"; [ "$status" -eq 2 ]
+}
+@test "expansion : cat .e\$'n'v bloqué" {
+  cmd "cat .e\$'n'v"; [ "$status" -eq 2 ]
+}
+@test "expansion : accolades .e{n,x}v bloqué" {
+  cmd "cat .e${AO}n,x${AF}v"; [ "$status" -eq 2 ]
+}
+@test "expansion : accolades .n{p,x}mrc bloqué" {
+  cmd "cat ~/.n${AO}p,x${AF}mrc"; [ "$status" -eq 2 ]
+}
+@test "expansion : \${…} dans .e\${X}v bloqué" {
+  cmd "cat .e\$${AO}X${AF}v"; [ "$status" -eq 2 ]
+}
+@test "expansion : .pgpass par \${…} bloqué" {
+  cmd "cat ~/.p\$${AO}X${AF}ass"; [ "$status" -eq 2 ]
+}
+@test "expansion : .git-credentials par accolades bloqué" {
+  cmd "cat ~/.g${AO}i,x${AF}t-credentials"; [ "$status" -eq 2 ]
+}
+@test "expansion : .docker par \$'' bloqué" {
+  cmd "cat ~/.d\$'o'cker/config.json"; [ "$status" -eq 2 ]
+}
+@test "expansion : ls .e* toléré" { cmd 'ls .e*'; [ "$status" -eq 0 ]; }
+@test "expansion : ls -d .[a-z]* toléré" { cmd 'ls -d .[a-z]*'; [ "$status" -eq 0 ]; }
+@test "expansion : ls -la .e* toléré" { cmd 'ls -la .e*'; [ "$status" -eq 0 ]; }
+@test "expansion : cat .e* reste bloqué" { cmd 'cat .e*'; [ "$status" -eq 2 ]; }
+@test "expansion : accolades hors nom sensible autorisées" {
+  cmd "mkdir -p src/${AO}a,b${AF}"; [ "$status" -eq 0 ]
+}
+@test "lexical : jq . *.json autorisé" { cmd 'jq . *.json'; [ "$status" -eq 0 ]; }
+@test "lexical : rm -f *.log autorisé" { cmd 'rm -f *.log'; [ "$status" -eq 0 ]; }
+@test "lexical : cat src/*.ts autorisé" { cmd 'cat src/*.ts'; [ "$status" -eq 0 ]; }
 @test "légitime : rm -rf ./build" { cmd 'rm -rf ./build'; [ "$status" -eq 0 ]; }
 @test "légitime : git push origin feat/x" { cmd 'git push origin feat/x'; [ "$status" -eq 0 ]; }
 @test "légitime : git push -f origin feat/x" { cmd 'git push -f origin feat/x'; [ "$status" -eq 0 ]; }
@@ -171,6 +225,21 @@ sec() { run env GARDE_SECRETS_SANS_GITLEAKS=1 "$H/garde-secrets.sh" <<<"$1"; }
 @test "secrets : lecture .git-credentials bloquée" { sec "$(read_json /home/u/.git-credentials)"; [ "$status" -eq 2 ]; }
 @test "secrets : lecture .docker/config.json bloquée" { sec "$(read_json /home/u/.docker/config.json)"; [ "$status" -eq 2 ]; }
 @test "secrets : lecture d'un vrai fixture autorisée" { sec "$(read_json tests/fixtures/x/../read-ok.json)"; [ "$status" -eq 0 ]; }
+outil_json() { jq -cn --arg o "$1" --arg k "$2" --arg v "$3" '{tool_name:$o,tool_input:{($k):$v}}'; }
+@test "secrets : Grep path .env bloqué" { sec "$(outil_json Grep path .env)"; [ "$status" -eq 2 ]; }
+@test "secrets : Grep path secrets bloqué" { sec "$(outil_json Grep path "$PROJ/secrets")"; [ "$status" -eq 2 ]; }
+@test "secrets : Grep glob .env* bloqué" { sec "$(outil_json Grep glob '.env*')"; [ "$status" -eq 2 ]; }
+@test "secrets : Glob **/.env bloqué" { sec "$(outil_json Glob pattern '**/.env')"; [ "$status" -eq 2 ]; }
+@test "secrets : Glob .e*v bloqué" { sec "$(outil_json Glob pattern '.e*v')"; [ "$status" -eq 2 ]; }
+@test "secrets : LS ~/.ssh bloqué" { sec "$(outil_json LS path /home/u/.ssh)"; [ "$status" -eq 2 ]; }
+@test "secrets : Glob **/*.ts autorisé" { sec "$(outil_json Glob pattern '**/*.ts')"; [ "$status" -eq 0 ]; }
+@test "secrets : Grep path src autorisé" { sec "$(outil_json Grep path src)"; [ "$status" -eq 0 ]; }
+@test "settings : rm -rf en ask, matcher Grep|Glob|LS, deny .npmrc" {
+  s="$RACINE/.claude/settings.json"
+  jq -e '.permissions.ask | index("Bash(rm -rf:*)") and index("Bash(rm -fr:*)") and index("Bash(rm -r -f:*)")' "$s"
+  jq -e '.hooks.PreToolUse[0].matcher | test("Grep") and test("Glob") and test("LS")' "$s"
+  jq -e '.permissions.deny | index("Read(./**/.npmrc)") and index("Read(./**/.git-credentials)")' "$s"
+}
 @test "secrets : lecture .ENV bloquée (casse)" { sec "$(read_json .ENV)"; [ "$status" -eq 2 ]; }
 @test "secrets : lecture .envrc bloquée" { sec "$(read_json "$PROJ/.envrc")"; [ "$status" -eq 2 ]; }
 @test "secrets : lecture config/secrets.yaml bloquée" { sec "$(read_json config/secrets.yaml)"; [ "$status" -eq 2 ]; }
@@ -228,6 +297,27 @@ init_depot() { git -C "$PROJ" init -q -b "$1"; }
 # ---------- qualite ----------
 @test "qualite : fichier absent ignoré" { run "$H/qualite.sh" <<<'{"tool_input":{"file_path":"/nexiste/pas.py"}}'; [ "$status" -eq 0 ]; }
 @test "qualite : extension inconnue ignorée" { echo x >"$PROJ/a.txt"; run "$H/qualite.sh" <<<"$(jq -cn --arg f "$PROJ/a.txt" '{tool_input:{file_path:$f}}')"; [ "$status" -eq 0 ]; }
+piege() { mkdir -p "$PROJ/$(dirname "$1")"; printf '#!/bin/sh\ntouch "%s/PIEGE"; exit 1\n' "$PROJ" >"$PROJ/$1"; chmod +x "$PROJ/$1"; }
+@test "qualite : vendor/bin non exécuté par défaut" {
+  piege vendor/bin/php-cs-fixer; echo '<?php' >"$PROJ/a.php"
+  run "$H/qualite.sh" <<<"$(jq -cn --arg f "$PROJ/a.php" '{tool_input:{file_path:$f}}')"
+  [ "$status" -eq 0 ]; [ ! -e "$PROJ/PIEGE" ]; }
+@test "qualite : node_modules/.bin non exécuté par défaut" {
+  piege node_modules/.bin/eslint; echo 'x' >"$PROJ/a.js"
+  run "$H/qualite.sh" <<<"$(jq -cn --arg f "$PROJ/a.js" '{tool_input:{file_path:$f}}')"
+  [ "$status" -eq 0 ]; [ ! -e "$PROJ/PIEGE" ]; }
+@test "qualite : .venv/bin non exécuté par défaut" {
+  piege .venv/bin/ruff; echo 'x=1' >"$PROJ/a.py"
+  PATH=/usr/bin:/bin run "$H/qualite.sh" <<<"$(jq -cn --arg f "$PROJ/a.py" '{tool_input:{file_path:$f}}')"
+  [ "$status" -eq 0 ]; [ ! -e "$PROJ/PIEGE" ]; }
+@test "qualite : gradlew non exécuté par défaut" {
+  piege gradlew; echo spotless >"$PROJ/build.gradle"; echo 'class A {}' >"$PROJ/A.java"
+  run "$H/qualite.sh" <<<"$(jq -cn --arg f "$PROJ/A.java" '{tool_input:{file_path:$f}}')"
+  [ "$status" -eq 0 ]; [ ! -e "$PROJ/PIEGE" ]; }
+@test "qualite : outils du projet en opt-in CLAUDE_QUALITE_OUTILS_PROJET=1" {
+  piege vendor/bin/php-cs-fixer; echo '<?php' >"$PROJ/a.php"
+  CLAUDE_QUALITE_OUTILS_PROJET=1 run "$H/qualite.sh" <<<"$(jq -cn --arg f "$PROJ/a.php" '{tool_input:{file_path:$f}}')"
+  [ "$status" -eq 2 ]; [ -e "$PROJ/PIEGE" ]; }
 @test "qualite : PHP sans outillage ignoré" { echo '<?php' >"$PROJ/a.php"; run "$H/qualite.sh" <<<"$(jq -cn --arg f "$PROJ/a.php" '{tool_input:{file_path:$f}}')"; [ "$status" -eq 0 ]; }
 @test "qualite : shellcheck signale un script fautif" {
   command -v shellcheck >/dev/null || skip "shellcheck absent"
